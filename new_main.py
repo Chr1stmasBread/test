@@ -1,24 +1,62 @@
-from TOKEN import *
 import telebot
+import requests
+from langdetect import detect
+from TOKEN import *
 import sqlite3
 
-# Создание экземпляра бота
 bot = telebot.TeleBot(TOKEN)
 
-# Функция для установки соединения с базой данных
-def get_connection():
-    conn = sqlite3.connect('user_data.db', check_same_thread=False)
-    return conn
+# Создание базы данных и таблицы пользователей
+def create_database():
+    with sqlite3.connect('users.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute('''CREATE TABLE IF NOT EXISTS users
+                          (user_id INTEGER PRIMARY KEY, genre TEXT, gender TEXT, universe TEXT)''')
+
+# Функция для отправки запроса к Yandex GPT
+def generate_text(genre, gender, universe, query):
+    model_uri = f"gpt://{FOLDER_ID}/yandexgpt-lite"
+
+    headers = {
+        'Authorization': f'Bearer {IAM_TOKEN}',
+        'Content-Type': 'application/json'
+    }
+    data = {
+        "modelUri": model_uri,
+        "completionOptions": {
+            "stream": False,
+            "temperature": 0.6,
+            "maxTokens": "2000"
+        },
+        "messages": [
+            {
+                "role": "user",
+                "text": f"Generate story with genre: {genre}, gender: {gender}, universe: {universe}, query: {query}"
+            }
+        ]
+    }
+
+    response = requests.post("https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+                             headers=headers,
+                             json=data)
+
+    if response.status_code == 200:
+        text = response.json()["result"]["alternatives"][0]["message"]["text"]
+        return text
+    else:
+        error_message = 'Invalid response received: code: {}, message: {}'.format(response.status_code, response.text)
+        return error_message
 
 # Обработчик команды /start
 @bot.message_handler(commands=['start'])
 def start(message):
-    # Отправляем приветственное сообщение и кнопки для выбора жанра
-    bot.send_message(message.chat.id, 'Привет! Для начала работы выберите жанр:',
-                     reply_markup=telebot.types.ReplyKeyboardMarkup(resize_keyboard=True,
-                                                                    one_time_keyboard=True)
-                                    .add('Фантастика', 'Фэнтези')
-                                    .add('Детектив', 'Романтика'))
+    bot.reply_to(message, 'Привет! Для начала работы введите /generate для генерации истории.')
+    create_database()
+
+# Обработчик команды /generate
+@bot.message_handler(commands=['generate'])
+def generate(message):
+    bot.reply_to(message, 'Выберите жанр: Фэнтези, Научная фантастика, Боевик, Романтика.')
 
 # Обработчик текстовых сообщений
 @bot.message_handler(func=lambda message: True)
@@ -27,46 +65,24 @@ def handle_text(message):
     text = message.text
     user_id = message.from_user.id
 
-    # Получаем текущий шаг пользователя из базы данных
-    with get_connection() as conn:
+    # Получаем параметры пользователя из базы данных
+    with sqlite3.connect('users.db') as conn:
         cursor = conn.cursor()
         cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
         user_data = cursor.fetchone()
 
         if user_data:
-            # Разбираем полученные данные о пользователе
-            genre = user_data[1] if len(user_data) >= 2 else None
-            gender = user_data[2] if len(user_data) >= 3 else None
-            universe = user_data[3] if len(user_data) >= 4 else None
+            genre, gender, universe = user_data[1], user_data[2], user_data[3]
 
-            if not genre:
-                cursor.execute('UPDATE users SET genre = ? WHERE user_id = ?', (text, user_id))
-                conn.commit()
-                bot.send_message(message.chat.id, 'Отлично! Теперь выберите пол главного героя:',
-                                 reply_markup=telebot.types.ReplyKeyboardMarkup(resize_keyboard=True,
-                                                                                one_time_keyboard=True)
-                                                .add('Мужской', 'Женский'))
-            elif not gender:
-                cursor.execute('UPDATE users SET gender = ? WHERE user_id = ?', (text, user_id))
-                conn.commit()
-                bot.send_message(message.chat.id, 'Отлично! Теперь выберите вселенную:',
-                                 reply_markup=telebot.types.ReplyKeyboardMarkup(resize_keyboard=True,
-                                                                                one_time_keyboard=True)
-                                                .add('Вселенная 1', 'Вселенная 2'))
-            elif not universe:
-                cursor.execute('UPDATE users SET universe = ? WHERE user_id = ?', (text, user_id))
-                conn.commit()
-                bot.send_message(message.chat.id, 'Отлично! Ваши предпочтения сохранены.')
+            # Проверяем, выбраны ли все параметры
+            if genre and gender and universe:
+                # Генерируем текст с помощью Yandex GPT
+                generated_text = generate_text(genre, gender, universe, text)
+                bot.reply_to(message, generated_text)
             else:
-                bot.send_message(message.chat.id, 'Вы уже выбрали все параметры.')
-
+                bot.reply_to(message, 'Не выбраны все параметры для генерации истории.')
         else:
-            # В базе данных еще нет записи о пользователе, создаем новую
-            cursor.execute('INSERT INTO users (user_id, genre) VALUES (?, ?)', (user_id, text))
-            conn.commit()
-            bot.send_message(message.chat.id, 'Отлично! Теперь выберите пол главного героя:',
-                             reply_markup=telebot.types.ReplyKeyboardMarkup(resize_keyboard=True,
-                                                                            one_time_keyboard=True)
-                                            .add('Мужской', 'Женский'))
+            bot.reply_to(message, 'Не удалось получить данные пользователя.')
+
 # Запуск бота
 bot.polling()
