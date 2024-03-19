@@ -34,8 +34,10 @@ def handle_text(message):
         user_data = cursor.fetchone()
 
         if user_data:
-            # Обновляем данные пользователя в базе данных в зависимости от текущего шага
-            genre, gender, universe = user_data
+            # Разбираем полученные данные о пользователе
+            genre = user_data[1] if len(user_data) >= 2 else None
+            gender = user_data[2] if len(user_data) >= 3 else None
+            universe = user_data[3] if len(user_data) >= 4 else None
 
             if not genre:
                 cursor.execute('UPDATE users SET genre = ? WHERE user_id = ?', (text, user_id))
@@ -66,6 +68,5 @@ def handle_text(message):
                              reply_markup=telebot.types.ReplyKeyboardMarkup(resize_keyboard=True,
                                                                             one_time_keyboard=True)
                                             .add('Мужской', 'Женский'))
-
 # Запуск бота
 bot.polling()
