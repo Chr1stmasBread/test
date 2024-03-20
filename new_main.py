@@ -31,7 +31,7 @@ def generate_story(user_choices, description):
         "modelUri": f"gpt://{FOLDER_ID}/yandexgpt/latest",
         "completionOptions": {
             "stream": False,
-            "temperature": 0.8,
+            "temperature": 1,
             "maxTokens": "2000"
         },
         "messages": [
