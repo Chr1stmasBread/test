@@ -59,7 +59,20 @@ def start(message):
 # Обработчик команды /generate
 @bot.message_handler(commands=['generate'])
 def generate(message):
-    bot.reply_to(message, 'Выберите жанр и пол главного героя:')
+    user_id = message.from_user.id
+    conn = sqlite3.connect('users.db')  # Подключение к базе данных
+    cursor = conn.cursor()
+    user_data = cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
+    conn.close()
+
+    if user_data:
+        markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add('Фантастика', 'Фэнтези')
+        markup.add('Мужской', 'Женский')
+        markup.add('Вселенная 1', 'Вселенная 2')
+        bot.reply_to(message, 'Выберите жанр и пол главного героя:', reply_markup=markup)
+    else:
+        bot.reply_to(message, 'Не удалось получить данные пользователя.')
 
 
 # Обработчик текстовых сообщений
