@@ -63,16 +63,21 @@ def generate(message):
     conn = sqlite3.connect('users.db')  # Подключение к базе данных
     cursor = conn.cursor()
     user_data = cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
-    conn.close()
 
-    if user_data:
-        markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add('Фантастика', 'Фэнтези')
-        markup.add('Мужской', 'Женский')
-        markup.add('Вселенная 1', 'Вселенная 2')
-        bot.reply_to(message, 'Выберите жанр и пол главного героя:', reply_markup=markup)
-    else:
-        bot.reply_to(message, 'Не удалось получить данные пользователя.')
+    if not user_data:
+        # Добавляем нового пользователя в базу данных
+        cursor.execute('INSERT INTO users (user_id) VALUES (?)', (user_id,))
+        conn.commit()
+        bot.reply_to(message, 'Данные пользователя успешно добавлены.')
+
+    # Создаем клавиатуру для выбора жанра и пола
+    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add('Фантастика', 'Фэнтези')
+    markup.add('Мужской', 'Женский')
+    markup.add('Вселенная 1', 'Вселенная 2')
+    bot.reply_to(message, 'Выберите жанр и пол главного героя:', reply_markup=markup)
+
+    conn.close()
 
 # Обработчик текстовых сообщений
 @bot.message_handler(func=lambda message: True)
