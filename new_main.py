@@ -65,16 +65,19 @@ def generate(message):
 # Обработчик текстовых сообщений
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
-    user_id = message.from_user.id
-    # Получение данных пользователя из базы данных
-    cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
-    user_data = cursor.fetchone()
-    # Если данные пользователя не найдены, отправляем сообщение об ошибке
-    if not user_data:
-        bot.reply_to(message, 'Не удалось получить данные пользователя.')
-        return
+	user_id = message.from_user.id
 
-    bot.reply_to(message, 'Выберите жанр и пол главного героя:')
+	# Подключаемся к базе данных и создаем курсор внутри этого потока
+	with sqlite3.connect('users.db') as conn:
+		cursor = conn.cursor()
+		user_data = cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
+		if not user_data:
+			bot.reply_to(message, 'Не удалось получить данные пользователя.')
+			return
+
+	query = message.text
+	generated_text = generate_text(query, user_data[4], user_data[5], user_data[6])
+	bot.reply_to(message, generated_text)
 
 
 # Запуск бота
