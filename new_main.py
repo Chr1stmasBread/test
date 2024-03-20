@@ -74,7 +74,6 @@ def generate(message):
     else:
         bot.reply_to(message, 'Не удалось получить данные пользователя.')
 
-
 # Обработчик текстовых сообщений
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
