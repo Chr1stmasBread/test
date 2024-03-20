@@ -1,89 +1,110 @@
-import threading
 import requests
 import telebot
-from langdetect import detect
+from langdetect import detect  # Импортируем функцию для определения языка
 from TOKEN import *
 import sqlite3
 
+# Создание экземпляра бота
 bot = telebot.TeleBot(TOKEN)
-lock = threading.Lock()
 
+
+# Функция для подключения к базе данных SQLite и создания курсора
+def connect_to_database():
+	conn = sqlite3.connect('users.db')
+	cursor = conn.cursor()
+	return conn, cursor
+
+
+# Функция для отправки запроса к Yandex GPT
 def generate_text(query, genre, gender, universe):
-    model_uri = f"gpt://{FOLDER_ID}/yandexgpt-lite"
+	# Определяем URI модели на основе выбранных параметров
+	if detect(query) == 'ru':
+		model_uri = f"gpt://{FOLDER_ID}/yandexgpt-lite"
+	else:
+		model_uri = f"gpt://{FOLDER_ID}/yandexgpt-lite-en"
 
-    headers = {
-        'Authorization': f'Bearer {IAM_TOKEN}',
-        'Content-Type': 'application/json'
-    }
-    data = {
-        "modelUri": model_uri,
-        "completionOptions": {
-            "stream": False,
-            "temperature": 0.6,
-            "maxTokens": "2000"
-        },
-        "messages": [
-            {
-                "role": "user",
-                "text": query
-            }
-        ]
-    }
+	headers = {
+		'Authorization': f'Bearer {IAM_TOKEN}',
+		'Content-Type': 'application/json'
+	}
+	data = {
+		"modelUri": model_uri,
+		"completionOptions": {
+			"stream": False,
+			"temperature": 0.6,
+			"maxTokens": "2000"
+		},
+		"messages": [
+			{
+				"role": "user",
+				"text": query
+			}
+		]
+	}
 
-    response = requests.post("https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
-                             headers=headers,
-                             json=data)
+	response = requests.post("https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
+							 headers=headers,
+							 json=data)
 
-    if response.status_code == 200:
-        text = response.json()["result"]["alternatives"][0]["message"]["text"]
-        return text
-    else:
-        return 'Ошибка при обработке запроса.'
+	if response.status_code == 200:
+		text = response.json()["result"]["alternatives"][0]["message"]["text"]
+		return text
+	else:
+		return 'Ошибка при обработке запроса.'
 
-def get_user_data(user_id):
-    with lock:
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        user_data = cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
-        conn.close()
-    return user_data
 
+# Обработчик команды /start
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, 'Привет! Чтобы начать, введите /generate для генерации истории.')
+	bot.reply_to(message, 'Привет! Для начала работы введите /generate для генерации истории.')
 
+
+# Обработчик команды /generate
 @bot.message_handler(commands=['generate'])
 def generate(message):
-    keyboard = telebot.types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    genre_btn = telebot.types.KeyboardButton('Жанр')
-    gender_btn = telebot.types.KeyboardButton('Пол')
-    universe_btn = telebot.types.KeyboardButton('Вселенная')
-    keyboard.add(genre_btn, gender_btn, universe_btn)
-    bot.send_message(message.chat.id, 'Выберите жанр, пол и вселенную:', reply_markup=keyboard)
+	# Подключение к базе данных SQLite и создание курсора
+	conn, cursor = connect_to_database()
 
+	# Получение данных пользователя из базы данных
+	user_id = message.from_user.id
+	user_data = cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
+	conn.close()  # Закрываем соединение с базой данных
+
+	# Если данные пользователя не найдены, отправляем сообщение об ошибке
+	if not user_data:
+		bot.reply_to(message, 'Не удалось получить данные пользователя.')
+		return
+
+	bot.reply_to(message, 'Выберите жанр и пол главного героя:')
+
+
+# Обработчик текстовых сообщений
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
-    user_id = message.from_user.id
-    user_data = get_user_data(user_id)
-    if not user_data:
-        bot.reply_to(message, 'Не удалось получить данные пользователя.')
-        return
+	user_id = message.from_user.id
 
-    if message.text == 'Жанр':
-        genre_keyboard = telebot.types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-        # Добавьте варианты жанров здесь
-        bot.send_message(message.chat.id, 'Выберите жанр:', reply_markup=genre_keyboard)
-    elif message.text == 'Пол':
-        gender_keyboard = telebot.types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-        # Добавьте варианты полов здесь
-        bot.send_message(message.chat.id, 'Выберите пол:', reply_markup=gender_keyboard)
-    elif message.text == 'Вселенная':
-        universe_keyboard = telebot.types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-        # Добавьте варианты вселенных здесь
-        bot.send_message(message.chat.id, 'Выберите вселенную:', reply_markup=universe_keyboard)
-    else:
-        query = message.text
-        generated_text = generate_text(query, user_data[4], user_data[5], user_data[6])
-        bot.reply_to(message, generated_text)
+	# Подключение к базе данных SQLite и создание курсора
+	conn, cursor = connect_to_database()
 
+	# Получение данных пользователя из базы данных
+	user_data = cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,)).fetchone()
+
+	# Если данные пользователя не найдены, отправляем сообщение об ошибке
+	if not user_data:
+		bot.reply_to(message, 'Не удалось получить данные пользователя.')
+		return
+
+	# Извлечение жанра, пола главного героя и вселенной из данных пользователя
+	genre, gender, universe = user_data[4], user_data[5], user_data[6]
+
+	# Закрываем соединение с базой данных
+	conn.close()
+
+	# Генерируем текст и отправляем ответ пользователю
+	query = message.text
+	generated_text = generate_text(query, genre, gender, universe)
+	bot.reply_to(message, generated_text)
+
+
+# Запуск бота
 bot.polling()
