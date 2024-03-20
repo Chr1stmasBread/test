@@ -23,8 +23,10 @@ def generate_story(user_choices, description):
         'Authorization': f'Bearer {IAM_TOKEN}',
         'Content-Type': 'application/json'
     }
-    # Строим текст запроса на основе выбора пользователя и описания
-    query = f"Жанр: {user_choices['genre']}\nПол главного героя: {user_choices['gender']}\nВселенная: {user_choices['universe']}\nОписание: {description}"
+    query = f"Жанр: {user_choices.get('genre', 'Не указан')}\n" \
+            f"Пол главного героя: {user_choices.get('gender', 'Не указан')}\n" \
+            f"Вселенная: {user_choices.get('universe', 'Не указан')}\n" \
+            f"Описание: {description}"
     data = {
         "modelUri": f"gpt://{FOLDER_ID}/yandexgpt/latest",
         "completionOptions": {
