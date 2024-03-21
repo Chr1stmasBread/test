@@ -8,11 +8,14 @@ bot = telebot.TeleBot(TOKEN)
 # Список доступных жанров
 genres = ['Хоррор', 'Фантастика', 'Детектив', 'Романтика']
 
-# Список доступных полов главного героя
-genders = ['Мужской', 'Женский']
-
 # Список доступных вселенных
 universes = ['Средиземье', 'Галактика', 'Земля', 'Мир фэнтези']
+
+# Список доступных персонажей
+characters = {
+    'Мужской': ['Джон', 'Майк'],
+    'Женский': ['Лиза', 'Анна']
+}
 
 # Словарь для хранения выбранных пользователем параметров
 user_choices = {}
@@ -24,7 +27,7 @@ def generate_story(user_choices, description):
         'Content-Type': 'application/json'
     }
     query = f"Жанр: {user_choices.get('genre', 'Не указан')}\n" \
-            f"Пол главного героя: {user_choices.get('gender', 'Не указан')}\n" \
+            f"Персонажи: {', '.join(user_choices.get('characters', ['Не указано']))}\n" \
             f"Вселенная: {user_choices.get('universe', 'Не указан')}\n" \
             f"Описание: {description}"
     data = {
@@ -69,15 +72,27 @@ def choose_genre(message):
     genre = message.text
     user_choices['genre'] = genre
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for gender in genders:
+    for gender in characters:
         markup.add(telebot.types.KeyboardButton(gender))
     bot.send_message(message.chat.id, 'Выберите пол главного героя:', reply_markup=markup)
 
 # Обработчик текстовых сообщений с выбором пола главного героя
-@bot.message_handler(func=lambda message: message.text in genders)
+@bot.message_handler(func=lambda message: message.text in characters)
 def choose_gender(message):
     gender = message.text
     user_choices['gender'] = gender
+    markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for character in characters[gender]:
+        markup.add(telebot.types.KeyboardButton(character))
+    bot.send_message(message.chat.id, 'Выберите персонажей:', reply_markup=markup)
+
+# Обработчик текстовых сообщений с выбором персонажей
+@bot.message_handler(func=lambda message: message.text in characters.get(user_choices['gender'], []))
+def choose_characters(message):
+    character = message.text
+    if 'characters' not in user_choices:
+        user_choices['characters'] = []
+    user_choices['characters'].append(character)
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     for universe in universes:
         markup.add(telebot.types.KeyboardButton(universe))
