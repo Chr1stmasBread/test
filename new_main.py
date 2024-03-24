@@ -113,7 +113,7 @@ def choose_universe(message):
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
     description = message.text
-    send_debug_message(message.chat.id, "Запрос к нейросети отправлен...")
+    bot.send_message(message.chat.id, "Запрос к нейросети отправлен...")
     # Здесь вызываем функцию для генерации истории на основе выбора пользователя и описания
     generated_story = generate_story(user_choices, description)
     bot.reply_to(message, generated_story)
