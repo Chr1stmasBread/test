@@ -63,6 +63,7 @@ def start(message):
     bot.reply_to(message, 'Привет! Для начала работы введите /generate для генерации истории.')
 
 # Функция для отправки сообщений о статусах запросов к нейросети
+@bot.message_handler(commands=['debug'])
 def send_debug_message(chat_id, message):
     bot.send_message(chat_id, f'[DEBUG] {message}')
 
