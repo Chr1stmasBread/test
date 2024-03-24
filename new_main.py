@@ -1,9 +1,13 @@
 import telebot
 import requests
 from TOKEN import *
+import logging
 
 # Создание экземпляра бота
 bot = telebot.TeleBot(TOKEN)
+
+# Включение логирования
+logging.basicConfig(filename='bot.log', level=logging.DEBUG)
 
 # Список доступных жанров
 genres = ['Хоррор', 'Фантастика', 'Детектив', 'Романтика']
@@ -57,6 +61,10 @@ def generate_story(user_choices, description):
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(message, 'Привет! Для начала работы введите /generate для генерации истории.')
+
+# Функция для отправки сообщений о статусах запросов к нейросети
+def send_debug_message(chat_id, message):
+    bot.send_message(chat_id, f'[DEBUG] {message}')
 
 # Обработчик команды /generate
 @bot.message_handler(commands=['generate'])
