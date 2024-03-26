@@ -96,7 +96,7 @@ def choose_gender(message):
     bot.send_message(message.chat.id, 'Выберите персонажей:', reply_markup=markup)
 
 # Обработчик текстовых сообщений с выбором персонажей
-@bot.message_handler(func=lambda message: message.text in characters.get(user_choices.get('gender', []), []))
+@bot.message_handler(func=lambda message: message.text in characters.get(user_choices.get('gender', []), set()))
 def choose_characters(message):
     character = message.text
     if 'characters' not in user_choices:
