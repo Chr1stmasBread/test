@@ -5,7 +5,7 @@ import logging
 import os
 
 # Получение токена из переменных окружения
-TOKEN = os.environ.get('TOKEN')
+TOKEN = os.environ.get(TG_TOKEN)
 
 # Создание экземпляра бота
 bot = telebot.TeleBot(TOKEN)
