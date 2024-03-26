@@ -2,7 +2,25 @@ import telebot
 import requests
 from TOKEN import *
 import logging
+import os
 
+# Получение токена из переменных окружения
+TOKEN = os.environ.get('TOKEN')
+
+# Создание экземпляра бота
+bot = telebot.TeleBot(TOKEN)
+
+# Путь к файлу логов
+log_file_path = 'bot.log'
+
+# Убеждаемся, что файл логов существует
+if not os.path.exists(log_file_path):
+    # Если файл не существует, создаем его
+    with open(log_file_path, 'w') as f:
+        f.write('')
+
+# Включение логирования
+logging.basicConfig(filename=log_file_path, level=logging.DEBUG)
 # Создание экземпляра бота
 bot = telebot.TeleBot(TOKEN)
 
