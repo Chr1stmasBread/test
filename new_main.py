@@ -126,8 +126,9 @@ def handle_text(message):
 @bot.message_handler(commands=['logs'])
 def send_logs(message):
     try:
-        with open('bot.log', 'rb') as log_file:
-            bot.send_document(message.chat.id, log_file)
+        with open('bot.log', 'r') as log_file:
+            log_content = log_file.read()
+        bot.send_message(message.chat.id, log_content)
     except Exception as e:
         bot.reply_to(message, f'Ошибка отправки логов: {str(e)}')
 
