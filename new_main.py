@@ -55,12 +55,17 @@ def generate_story(user_choices, description):
         story = response.json()["result"]["alternatives"][0]["message"]["text"]
         return story
     else:
+        logging.error(f'Request failed with status code {response.status_code}')
         return 'Ошибка при обработке запроса.'
 
 # Обработчик команды /start
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.reply_to(message, 'Привет! Для начала работы введите /generate для генерации истории.')
+
+# Функция для отправки сообщений о статусах запросов к нейросети
+def send_debug_message(chat_id, message):
+    bot.send_message(chat_id, f'[DEBUG] {message}')
 
 # Обработчик команды /generate
 @bot.message_handler(commands=['generate'])
@@ -113,10 +118,18 @@ def choose_universe(message):
 @bot.message_handler(func=lambda message: True)
 def handle_text(message):
     description = message.text
-    bot.send_message(message.chat.id, "Запрос к нейросети отправлен...")
     # Здесь вызываем функцию для генерации истории на основе выбора пользователя и описания
     generated_story = generate_story(user_choices, description)
     bot.reply_to(message, generated_story)
+
+# Обработчик команды /logs
+@bot.message_handler(commands=['logs'])
+def send_logs(message):
+    try:
+        with open('bot.log', 'rb') as log_file:
+            bot.send_document(message.chat.id, log_file)
+    except Exception as e:
+        bot.reply_to(message, f'Ошибка отправки логов: {str(e)}')
 
 # Запуск бота
 bot.polling()
